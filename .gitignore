@@ -1,0 +1,17 @@
+# Sistema operativo
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+
+# Dependencias y compilados (por si más adelante se usa Node / Angular)
+node_modules/
+dist/
+.angular/
+
+# Entregas y temporales
+*.zip
+*.log
