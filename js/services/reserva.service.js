@@ -7,8 +7,10 @@ const ReservaService = {
 
   listar() { return DB.get('reservas', []); },
 
+  /* Más recientes primero: se compara la fecha (ISO) y después la hora como NÚMERO.
+     (Antes se concatenaban como texto y "8" quedaba después de "12"). */
   listarTodas() {
-    return this.listar().sort((a, b) => (b.fecha + b.hora).localeCompare(a.fecha + a.hora));
+    return this.listar().sort((a, b) => b.fecha.localeCompare(a.fecha) || b.hora - a.hora);
   },
 
   listarPorUsuario(usuarioId) {
@@ -56,20 +58,33 @@ const ReservaService = {
     return r;
   },
 
+  /* ÚNICO lugar donde cambia el estado de una reserva. Mantiene coherentes estado y pago:
+     - Confirmada  => pagada (con método y código de pago)
+     - Pendiente / Cancelada => no pagada (se limpian los datos de pago) */
+  aplicarEstado(r, estado, metodo = null) {
+    r.estado = estado;
+    if (estado === ESTADOS.CONFIRMADA) {
+      r.pagado = true;
+      r.metodoPago = r.metodoPago || metodo || 'Registrado por el administrador';
+      r.codigoPago = r.codigoPago || 'PAG-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+    } else {
+      r.pagado = false;
+      delete r.metodoPago;
+      delete r.codigoPago;
+    }
+    return r;
+  },
+
   cambiarEstado(id, estado) {
     const lista = this.listar();
-    lista.find(x => x.id === id).estado = estado;
+    this.aplicarEstado(lista.find(x => x.id === id), estado);
     DB.set('reservas', lista);
   },
 
   /* Pago simulado: no maneja dinero ni datos bancarios, solo confirma la reserva */
   pagar(id, metodo) {
     const lista = this.listar();
-    const r = lista.find(x => x.id === id);
-    r.estado = ESTADOS.CONFIRMADA;
-    r.pagado = true;
-    r.metodoPago = metodo;
-    r.codigoPago = 'PAG-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+    const r = this.aplicarEstado(lista.find(x => x.id === id), ESTADOS.CONFIRMADA, metodo);
     DB.set('reservas', lista);
     return r;
   },
